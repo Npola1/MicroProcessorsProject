@@ -1,4 +1,4 @@
 [wokwi]
 version = 1
-firmware = 'build/labs/lab04/lab04.hex'
-elf = 'build/labs/lab04/lab04.elf'
+firmware = 'build/labs/lab05/lab05.hex'
+elf = 'build/labs/lab05/lab05.elf'

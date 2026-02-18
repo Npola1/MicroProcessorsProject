@@ -1,0 +1,40 @@
+info registers
+r0             0x20000288          0x20000288
+r1             0x1000036f          0x1000036f
+r2             0x80808080          0x80808080
+r3             0x100037f4          0x100037f4
+r4             0x10000268          0x10000268
+r5             0x20041f01          0x20041f01
+r6             0x18000000          0x18000000
+r7             0x0                 0x0
+r8             0xffffffff          0xffffffff
+r9             0xffffffff          0xffffffff
+r10            0xffffffff          0xffffffff
+r11            0xffffffff          0xffffffff
+r12            0x34000040          0x34000040
+sp             0x20042000          0x20042000
+lr             0x10000227          0x10000227
+pc             0x1000036e          0x1000036e <main>
+xPSR           0x61000000          0x61000000
+msp            0x20042000          0x20042000
+psp            0xfffffffc          0xfffffffc
+primask        0x0                 0x0
+basepri        0x0                 0x0
+faultmask      0x0                 0x0
+control        0x0                 0x0
+{"output":"","token":22,"outOfBandRecord":[],"resultRecords":{"resultClass":"done","results":[]}}
+
+
+
+Dump of assembler code from 0x10000380 to 0x1000039a:
+   0x10000380 <main_asm+0>:	movs	r0, #25
+   0x10000382 <main_asm+2>:	bl	0x10000320 <asm_gpio_init>
+   0x10000386 <main_asm+6>:	movs	r0, #25
+   0x10000388 <main_asm+8>:	movs	r1, #1
+   0x1000038a <main_asm+10>:	bl	0x10000328 <asm_gpio_set_dir>
+   0x1000038e <loop+0>:	ldr	r0, [pc, #36]	@ (0x100003b4 <led_set_state+8>)
+   0x10000390 <loop+2>:	bl	0x10000cd4 <sleep_ms>
+   0x10000394 <loop+6>:	bl	0x1000039a <sub_toggle>
+   0x10000398 <loop+10>:	b.n	0x1000038e <loop>
+End of assembler dump.
+{"output":"","token":25,"outOfBandRecord":[],"resultRecords":{"resultClass":"done","results":[]}}
