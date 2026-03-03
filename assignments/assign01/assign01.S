@@ -10,21 +10,21 @@
 .align 4                             
 
 /* --- Configuration Constants --- */
-.equ    COLOUR_PTRN_TIME, 5000                                  @ Window for visual feedback (5ms)
-.equ    DFLT_STATE_STRT, 1                                      @ Logic high for active blinker
-.equ    DFLT_STATE_STOP, 0                                      @ Logic low for idle blinker
-.equ    DFLT_ALARM_TIME, 1000000                                @ 1-second interval in microseconds
+.equ    COLOUR_PTRN_TIME, 5000                              
+.equ    DFLT_STATE_STRT, 1                                     
+.equ    DFLT_STATE_STOP, 0                                 
+.equ    DFLT_ALARM_TIME, 1000000                              
 
 /* --- Bitmasks for GPIO Events (Falling Edges) --- */
-.equ    GPIO_BTN_DN_MSK, 0x00040000                             @ Mask for GP20 trigger
-.equ    GPIO_BTN_EN_MSK, 0x00400000                             @ Mask for GP21 trigger
-.equ    GPIO_BTN_UP_MSK, 0x04000000                             @ Mask for GP22 trigger
+.equ    GPIO_BTN_DN_MSK, 0x00040000                           
+.equ    GPIO_BTN_EN_MSK, 0x00400000                         
+.equ    GPIO_BTN_UP_MSK, 0x04000000                       
 
 /* --- Physical Pin Assignments --- */
 .equ    GPIO_BTN_DN,    20                                      
 .equ    GPIO_BTN_EN,    21                                      
 .equ    GPIO_BTN_UP,    22                                      
-.equ    GPIO_LED_PIN,   25                                      @ Onboard LED
+.equ    GPIO_LED_PIN,   25                              
 .equ    GPIO_DIR_IN,    0                                       
 .equ    GPIO_DIR_OUT,   1                                       
 
@@ -32,42 +32,38 @@
 .equ    LED_VAL_OFF,    0                                       
 
 /* --- NVIC Vector Table Offsets --- */
-.equ    GPIO_ISR_OFFSET,    0x74                                @ Entry for External GPIO IRQ
-.equ    ALRM_ISR_OFFSET,    0x40                                @ Entry for Timer Alarm 0 IRQ
+.equ    GPIO_ISR_OFFSET,    0x74                             
+.equ    ALRM_ISR_OFFSET,    0x40                       
 
 .text
 .thumb_func
 main_asm:
         LDR   R0, =msg
-        bl    printf                                            @ Output greeting to UART/USB
+        bl    printf                                 
 
-        BL      install_alarm_isr                               @ Map Timer handler
-        BL      install_gpio_isr                                @ Map Button handler
-        BL      init_leds                                       @ Configure GPIO 25
-        BL      init_btns                                       @ Configure GPIO 20-22
+        BL      install_alarm_isr                          
+        BL      install_gpio_isr                      
+        BL      init_leds                              
+        BL      init_btns                           
 main_loop:
-        BL      set_alarm                                       @ Schedule next blink event
-        wfi                                                     @ Sleep CPU until hardware interrupt
-        B       main_loop                                       @ Resume cycle after IRQ
+        BL      set_alarm                           
+        wfi          
+        B       main_loop
 
 .thumb_func
 install_alarm_isr:
-        @ Locate the Vector Table in RAM using the VTOR register
         LDR     R2, =(PPB_BASE + M0PLUS_VTOR_OFFSET)            
         LDR     R1, [R2]                                        
         LDR     R2, =ALRM_ISR_OFFSET                            
-        ADD     R2, R1                                          @ Calculate specific ISR slot
+        ADD     R2, R1
 
-        @ Assign the local alarm label to the vector table
         LDR     R0, =alrm_isr                                   
         STR     R0, [R2]                                        
 
-        @ Acknowledge and clear any existing Timer 0 pending status
         LDR     R2, =(PPB_BASE + M0PLUS_NVIC_ICPR_OFFSET)       
         LDR     R0, =1                                          
         STR     R0, [R2]                                        
 
-        @ Globally enable Timer 0 interrupts in the NVIC
         LDR     R2, =(PPB_BASE + M0PLUS_NVIC_ISER_OFFSET)       
         LDR     R0, =1                                          
         STR     R0, [R2]                                        
@@ -75,21 +71,17 @@ install_alarm_isr:
         BX      LR                                              
 
 install_gpio_isr:
-        @ Fetch the RAM-based vector table address
         LDR     R2, =(PPB_BASE + M0PLUS_VTOR_OFFSET)            
         LDR     R1, [R2]                                        
         LDR     R2, =GPIO_ISR_OFFSET                            
         ADD     R2, R1                                          
 
-        @ Link the GPIO handler to the system vector table
         LDR     R0, =gpio_isr                                   
         STR     R0, [R2]                                        
         
-        @ Target Bit 13 (External GPIO IRQ)
         LDR     R0, =1                                          
         LSLS    R0, #13                                         
         
-        @ Flush pending GPIO IRQs and activate the line in NVIC
         LDR     R1, =(PPB_BASE + M0PLUS_NVIC_ICPR_OFFSET)       
         STR     R0, [R1]                                        
         LDR     R1, =(PPB_BASE + M0PLUS_NVIC_ISER_OFFSET)       
@@ -99,31 +91,31 @@ install_gpio_isr:
 init_leds:                                                      
        PUSH   {LR}                                              
        MOVS   R0, #GPIO_LED_PIN                                 
-       BL     asm_gpio_init                                     @ Reset pin to SIO function
+       BL     asm_gpio_init
        MOVS   R0, #GPIO_LED_PIN                                 
        MOVS   R1, #GPIO_DIR_OUT                                 
-       BL     asm_gpio_set_dir                                  @ Define as output
+       BL     asm_gpio_set_dir
        MOVS   R0, #GPIO_LED_PIN                                 
        MOVS   R1, #LED_VAL_OFF                                  
-       BL     asm_gpio_put                                      @ Initial state: Dark
+       BL     asm_gpio_put
        POP    {PC}                                              
 
 init_btns:
        PUSH   {LR}                                              
        MOVS   R0, #GPIO_BTN_DN                                 
-       BL     asm_gpio_set_irq                                  @ Register falling edge for GP20
+       BL     asm_gpio_set_irq
        MOVS   R0, #GPIO_BTN_DN                                 
        MOVS   R1, #GPIO_DIR_IN                                  
-       BL     asm_gpio_set_dir                                  @ Define as input
+       BL     asm_gpio_set_dir
        
        MOVS   R0, #GPIO_BTN_EN                                 
-       BL     asm_gpio_set_irq                                  @ Register falling edge for GP21
+       BL     asm_gpio_set_irq
        MOVS   R0, #GPIO_BTN_EN                                 
        MOVS   R1, #GPIO_DIR_IN                                  
        BL     asm_gpio_set_dir                                  
        
        MOVS   R0, #GPIO_BTN_UP                                 
-       BL     asm_gpio_set_irq                                  @ Register falling edge for GP22
+       BL     asm_gpio_set_irq
        MOVS   R0, #GPIO_BTN_UP                                 
        MOVS   R1, #GPIO_DIR_IN                                  
        BL     asm_gpio_set_dir                                  
@@ -132,26 +124,17 @@ init_btns:
 
 .thumb_func
 set_alarm:
-       @ Wipe the Timer 0 interrupt flag to allow new triggers
        LDR     R2, =(TIMER_BASE + TIMER_INTR_OFFSET)             
        LDR     R1, =1
        STR     R1, [R2]
-
-       @ Enable the Alarm 0 hardware signal
        LDR     R2, =(TIMER_BASE + TIMER_INTE_OFFSET)             
        LDR     R1, =1
        STR     R1, [R2]
-
-       @ Capture current system time (Lower 32-bits)
        LDR     R2, =(TIMER_BASE + TIMER_TIMERAWL_OFFSET)          
        LDR     R3, [R2]
-
-       @ Add the user-defined delta (ltimer) to current time
        LDR     R2, =ltimer                                       
        LDR     R1, [R2]
        ADDS    R3, R1
-
-       @ Load the calculated timestamp into the hardware comparator
        LDR     R2, =(TIMER_BASE + TIMER_ALARM0_OFFSET)           
        STR     R3, [R2]
        BX      LR
@@ -161,26 +144,17 @@ set_alarm:
 alrm_isr:
        PUSH   {LR}                                              
        
-       @ Visual ping: ensure RGB indicates processing (clearing state)
        MOVS   R0, #0                                            
        BL     asm_set_led_color                                 
-
-       @ Standard interrupt acknowledgment (clear bit 0)
        LDR    R2, =(TIMER_BASE + TIMER_INTR_OFFSET) 
        MOVS   R1, #1                                            
        STR    R1, [R2]
-
-       @ Notify console of the tick event
        LDR    R0, =alarm                                        
        bl     printf                                            
-
-       @ Verify if blinking is currently authorized by the software state
        LDR    R4, =lstate                                       
        LDR    R4, [R4]                                          
        CMP    R4, #DFLT_STATE_STRT                              
-       BNE    alarm_done                                        @ Abort if state is "Stop"
-
-       @ Toggle Logic: Sample current GPIO state and invert it
+       BNE    alarm_done
        MOVS   R0, #GPIO_LED_PIN                                 
        BL     asm_gpio_get                                      
        CMP    R0, #LED_VAL_OFF                                  
@@ -195,8 +169,8 @@ led_set_on:
 
 led_set_state:
        MOVS   R0, #GPIO_LED_PIN                                 
-       BL     asm_gpio_put                                      @ Apply the new logic level
-       BL     set_alarm                                         @ Re-arm for the next toggle
+       BL     asm_gpio_put
+       BL     set_alarm
 
 alarm_done:
        POP    {PC}                                              
@@ -205,27 +179,20 @@ alarm_done:
 gpio_isr:
        PUSH   {LR}                                              
 
-       @ Probe which GPIO pin generated the event via INTS register
        LDR    R2, =(IO_BANK0_BASE + IO_BANK0_PROC0_INTS2_OFFSET) 
-       LDR    R1, [R2]                                          
-                                                                     
-       @ Section: Logic for GP20 (Frequency Reduction)
+       LDR    R1, [R2]                                                                                   
        LDR    R3, =GPIO_BTN_DN_MSK                              
        ANDS   R1, R3                                            
        CMP    R1, R3                                            
-       BNE    not_dn                                            
-
-       @ Check if we are resetting a paused state or modifying an active one
+       BNE    notDone                                         
        LDR    R4, =lstate                                       
        LDR    R5, [R4]                                          
        CMP    R5, #1                                            
-       BEQ    not_paused                                        
+       BEQ    unpaused                                        
 
-       @ Reset Logic: Restore default 1s timing
        LDR    R4, =ltimer                                       
        LDR    R5, =DFLT_ALARM_TIME                              
 
-       @ User Feedback: Flash Red and print reset info
        MOVS   R0, #1                                            
        BL     asm_set_led_color                                 
        LDR    R2, = COLOUR_PTRN_TIME                            
@@ -240,14 +207,13 @@ gpio_isr:
        BL     printf                                            
        B      end                                               
 
-not_paused:                 
-       @ Speed Mod: Double the microsecond delay (Slower)
+unpaused:                 
        LDR    R1, =ltimer                                       
        LDR    R3, [R1]                                          
        LSLS   R3, #1                                            
        STR    R3, [R1]                                          
 
-       MOVS   R0, #1                                            @ Red Feedback
+       MOVS   R0, #1
        BL     asm_set_led_color                                 
        LDR    R2, = COLOUR_PTRN_TIME                            
        LDR    R1, =(TIMER_BASE + TIMER_TIMERAWL_OFFSET)         
@@ -260,22 +226,20 @@ not_paused:
        bl     printf                                            
        b      end                                               
 
-not_dn:
-       @ Section: Logic for GP21 (Toggle Start/Stop)
+notDone:
        LDR    R2, =(IO_BANK0_BASE + IO_BANK0_PROC0_INTS2_OFFSET) 
        LDR    R1, [R2]                                          
        LDR    R3, =GPIO_BTN_EN_MSK                              
        ANDS   R1, R3                                            
        CMP    R1, R3                                            
-       BNE    not_en                                            
+       BNE    unEnd                                 
 
        LDR    R2, =lstate                                       
        LDR    R3, [R2]                                          
        CMP    R3, #1                                            
        BNE    start_timer                                       
         
-       @ Pause Execution
-       MOVS   R0, #3                                            @ Blue Feedback
+       MOVS   R0, #3
        BL     asm_set_led_color                                 
        LDR    R2, = COLOUR_PTRN_TIME                            
        LDR    R1, =(TIMER_BASE + TIMER_TIMERAWL_OFFSET)         
@@ -288,7 +252,6 @@ not_dn:
        LDR    R2, =lstate                                       
        STR    R1, [R2]                                          
 
-       @ Kill any pending hardware alarms
        LDR    R2, =(TIMER_BASE + TIMER_ARMED_OFFSET)            
        MOVS   R1, #1                                            
        STR    R1, [R2]                                          
@@ -301,7 +264,7 @@ not_dn:
        B      end                                               
 
 start_timer:  
-       MOVS   R0, #3                                            @ Blue Feedback
+       MOVS   R0, #3
        BL     asm_set_led_color                                 
        LDR    R2, = COLOUR_PTRN_TIME                            
        LDR    R1, =(TIMER_BASE + TIMER_TIMERAWL_OFFSET)         
@@ -318,8 +281,7 @@ start_timer:
        BL     printf                                            
        B      end                                               
         
-not_en:
-       @ Section: Logic for GP22 (Frequency Increase)
+unEnd:
        LDR    R2, =(IO_BANK0_BASE + IO_BANK0_PROC0_INTS2_OFFSET) 
        LDR    R1, [R2]                                          
        LDR    R3, =GPIO_BTN_UP_MSK                              
@@ -330,10 +292,9 @@ not_en:
        LDR    R4, =lstate                                       
        LDR    R5, [R4]                                          
        CMP    R5, #1                                            
-       BEQ    not_paused_up                                     
+       BEQ    upUnpaused                                
 
-       @ Handle Reset from Pause
-       MOVS   R0, #2                                            @ Green Feedback
+       MOVS   R0, #2
        BL     asm_set_led_color                                 
        LDR    R2, = COLOUR_PTRN_TIME                            
        LDR    R1, =(TIMER_BASE + TIMER_TIMERAWL_OFFSET)         
@@ -349,14 +310,13 @@ not_en:
        BL     printf                                            
        B      end                                               
 
-not_paused_up:                                                                                                  
-       @ Speed Mod: Shift right (Halve delay / Increase Speed)
+upUnpaused:                                                                                                  
        LDR    R1, =ltimer                                       
        LDR    R3, [R1]                                          
        ASRS   R3, #1                                            
        STR    R3, [R1]                                          
 
-       MOVS   R0, #2                                            @ Green Feedback
+       MOVS   R0, #2
        BL     asm_set_led_color                                 
        LDR    R2, = COLOUR_PTRN_TIME                            
        LDR    R1, =(TIMER_BASE + TIMER_TIMERAWL_OFFSET)         
@@ -370,7 +330,6 @@ not_paused_up:
        b      end                                               
 
 end:                                                                                                            
-       @ Hardware requirement: Clear the raw GPIO edge flags in the BANK0 status registers
        LDR    R2, =(IO_BANK0_BASE + IO_BANK0_INTR2_OFFSET)      
        LDR    R1, [R2]                                          
        STR    R1, [R2]                                          
