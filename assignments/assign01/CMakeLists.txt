@@ -1,3 +1,4 @@
+
 # Specify the name of the executable.
 add_executable(assign01)
 
@@ -7,6 +8,7 @@ target_sources(assign01 PRIVATE assign01.c assign01.S)
 # Generate the PIO header file from the PIO source file.
 pico_generate_pio_header(assign01 ${CMAKE_SOURCE_DIR}/examples/ws2812_rgb/ws2812.pio)
 
+pico_enable_stdio_usb(assign01 1)
 # Pull in commonly used features.
 target_link_libraries(assign01 PRIVATE pico_stdlib hardware_pio)
 

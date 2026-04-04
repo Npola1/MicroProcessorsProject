@@ -1,0 +1,661 @@
+Lab #11 – Raw ADC to Celsius and 32-bit IEEE 754 Float Conversion
+====================================================================
+
+The four readings used are:
+
+1) Raw ADC: 0x386  | Temperature shown: 14.96 degC
+2) Raw ADC: 0x389  | Temperature shown: 13.56 degC
+3) Raw ADC: 0x388  | Temperature shown: 14.03 degC
+4) Raw ADC: 0x380  | Temperature shown: 17.77 degC
+
+Assumptions and formulas used
+-----------------------------
+1. The ADC on the RP2040 is 12-bit, so its range is 0 to 4095.
+2. ADC voltage conversion:
+      V = (raw_ADC / 4096) × 3.3
+3. Temperature conversion for the RP2040 internal temperature sensor:
+      T = 27 - (V - 0.706) / 0.001721
+4. IEEE 754 single-precision float format uses:
+      - 1 sign bit
+      - 8 exponent bits
+      - 23 fraction bits
+
+Important note
+--------------
+The raw ADC values convert to temperatures very close to the printed values.
+Small differences happen because the displayed temperature is rounded to 2
+decimal places, while the actual calculation contains more digits.
+
+====================================================================
+READING 1
+====================================================================
+
+
+A. Raw ADC hexadecimal to decimal
+---------------------------------
+Raw ADC = 0x386
+
+Convert hexadecimal to decimal:
+0x386 = 902 decimal
+
+Expanded:
+      3×16^2 + 8×16^1 + 6×16^0
+      = 902
+
+B. Convert raw ADC value to voltage
+-----------------------------------
+Formula:
+      V = (raw_ADC / 4096) × 3.3
+
+Substitute raw_ADC = 902:
+      V = (902 / 4096) × 3.3
+      V = 0.220214844 × 3.3
+      V = 0.726708984 V
+
+C. Convert voltage to temperature
+---------------------------------
+Formula:
+      T = 27 - (V - 0.706) / 0.001721
+
+Substitute V = 0.726708984:
+      T = 27 - (0.726708984 - 0.706) / 0.001721
+      T = 27 - (0.020708984) / 0.001721
+      T = 27 - 12.033111200
+      T = 14.966888800 °C
+
+Rounded to 2 decimal places:
+      T ≈ 14.96 °C
+
+D. Convert the decimal temperature to IEEE 754 single precision
+---------------------------------------------------------------
+Temperature to encode:
+      14.96 decimal
+
+Step 1: Write the decimal number as integer part + fractional part
+      14.96 = 14 + 0.960000000000
+
+Step 2: Convert the integer part to binary
+      14 decimal = 1110 binary
+
+Step 3: Convert the fractional part to binary by repeated multiplication by 2
+      Step  1: 0.960000000000 × 2 = 1.920000000000  -> bit = 1, new fraction = 0.920000000000
+      Step  2: 0.920000000000 × 2 = 1.840000000000  -> bit = 1, new fraction = 0.840000000000
+      Step  3: 0.840000000000 × 2 = 1.680000000000  -> bit = 1, new fraction = 0.680000000000
+      Step  4: 0.680000000000 × 2 = 1.360000000000  -> bit = 1, new fraction = 0.360000000000
+      Step  5: 0.360000000000 × 2 = 0.720000000000  -> bit = 0, new fraction = 0.720000000000
+      Step  6: 0.720000000000 × 2 = 1.440000000000  -> bit = 1, new fraction = 0.440000000000
+      Step  7: 0.440000000000 × 2 = 0.880000000000  -> bit = 0, new fraction = 0.880000000000
+      Step  8: 0.880000000000 × 2 = 1.760000000000  -> bit = 1, new fraction = 0.760000000000
+      Step  9: 0.760000000000 × 2 = 1.520000000000  -> bit = 1, new fraction = 0.520000000000
+      Step 10: 0.520000000000 × 2 = 1.040000000000  -> bit = 1, new fraction = 0.040000000000
+      Step 11: 0.040000000000 × 2 = 0.080000000000  -> bit = 0, new fraction = 0.080000000000
+      Step 12: 0.080000000000 × 2 = 0.160000000000  -> bit = 0, new fraction = 0.160000000000
+      Step 13: 0.160000000000 × 2 = 0.320000000000  -> bit = 0, new fraction = 0.320000000000
+      Step 14: 0.320000000000 × 2 = 0.640000000000  -> bit = 0, new fraction = 0.640000000000
+      Step 15: 0.640000000000 × 2 = 1.280000000000  -> bit = 1, new fraction = 0.280000000000
+      Step 16: 0.280000000000 × 2 = 0.560000000000  -> bit = 0, new fraction = 0.560000000000
+
+So the fractional part begins as:
+      0.1111010111000010100011110101110000101000...
+
+Therefore the full binary number is:
+      1110.1111010111000010100011110101110000101000...
+
+Step 4: Normalize the binary number
+      1110.1111010111000010100011110101110000101000... = 1.1101111010111000010100011110101110000101000... × 2^3
+
+Step 5: Determine the sign bit
+      The number is positive, so sign bit = 0
+
+Step 6: Determine the exponent bits
+      Unbiased exponent = 3
+      Bias for single precision = 127
+      Stored exponent = 3 + 127 = 130
+      130 decimal = 10000010 binary
+
+Step 7: Determine the mantissa (fraction field)
+      Take the bits after the leading 1 in the normalized form.
+
+      First 23 bits before rounding:
+      11011110101110000101000
+
+      Next bit after those 23 bits:
+      1
+
+      Remaining bits after that:
+      1110101110000101000
+
+      Since the next bit is 1 and there are still non-zero bits after it, round up the 23-bit mantissa.
+
+      Stored mantissa after rounding:
+      11011110101110000101001
+
+Step 8: Put the 32 bits together
+      sign      exponent        mantissa
+      0         10000010        11011110101110000101001
+
+      Full 32-bit pattern:
+      01000001011011110101110000101001
+
+Step 9: Group into 4-bit nibbles to convert to hexadecimal
+      0100 0001 0110 1111 0101 1100 0010 1001
+
+      = 4 1 6 F 5 C 2 9
+      = 0x416F5C29
+
+So the 32-bit IEEE 754 float value for 14.96 °C is:
+      0x416F5C29
+
+E. Decode the IEEE 754 value back to a real number
+--------------------------------------------------
+Given hexadecimal float:
+      0x416F5C29
+
+Convert hex to binary:
+      01000001011011110101110000101001
+
+Split fields:
+      sign bit     = 0
+      exponent     = 10000010
+      fraction     = 11011110101110000101001
+
+1. Sign
+      sign bit = 0 -> positive
+
+2. Exponent
+      exponent bits = 10000010 = 130 decimal
+      unbiased exponent = 130 - 127 = 3
+
+3. Significand
+      Because this is a normalized number, prepend an implicit leading 1:
+      1.11011110101110000101001
+
+So the value is:
+      (+1) × 1.11011110101110000101001_2 × 2^3
+
+Shift the binary point right by 3 places:
+      1110.11110101110000101001
+
+This equals approximately:
+      14.960000038147 °C
+
+Rounded to 2 decimal places:
+      14.96 °C
+
+
+====================================================================\nREADING 2\n====================================================================\n
+A. Raw ADC hexadecimal to decimal
+---------------------------------
+Raw ADC = 0x389
+
+Convert hexadecimal to decimal:
+0x389 = 905 decimal
+
+Expanded:
+      3×16^2 + 8×16^1 + 9×16^0
+      = 905
+
+B. Convert raw ADC value to voltage
+-----------------------------------
+Formula:
+      V = (raw_ADC / 4096) × 3.3
+
+Substitute raw_ADC = 905:
+      V = (905 / 4096) × 3.3
+      V = 0.220947266 × 3.3
+      V = 0.729125977 V
+
+C. Convert voltage to temperature
+---------------------------------
+Formula:
+      T = 27 - (V - 0.706) / 0.001721
+
+Substitute V = 0.729125977:
+      T = 27 - (0.729125977 - 0.706) / 0.001721
+      T = 27 - (0.023125977) / 0.001721
+      T = 27 - 13.437522698
+      T = 13.562477302 °C
+
+Rounded to 2 decimal places:
+      T ≈ 13.56 °C
+
+D. Convert the decimal temperature to IEEE 754 single precision
+---------------------------------------------------------------
+Temperature to encode:
+      13.56 decimal
+
+Step 1: Write the decimal number as integer part + fractional part
+      13.56 = 13 + 0.560000000000
+
+Step 2: Convert the integer part to binary
+      13 decimal = 1101 binary
+
+Step 3: Convert the fractional part to binary by repeated multiplication by 2
+      Step  1: 0.560000000000 × 2 = 1.120000000000  -> bit = 1, new fraction = 0.120000000000
+      Step  2: 0.120000000000 × 2 = 0.240000000000  -> bit = 0, new fraction = 0.240000000000
+      Step  3: 0.240000000000 × 2 = 0.480000000000  -> bit = 0, new fraction = 0.480000000000
+      Step  4: 0.480000000000 × 2 = 0.960000000000  -> bit = 0, new fraction = 0.960000000000
+      Step  5: 0.960000000000 × 2 = 1.920000000000  -> bit = 1, new fraction = 0.920000000000
+      Step  6: 0.920000000000 × 2 = 1.840000000000  -> bit = 1, new fraction = 0.840000000000
+      Step  7: 0.840000000000 × 2 = 1.680000000000  -> bit = 1, new fraction = 0.680000000000
+      Step  8: 0.680000000000 × 2 = 1.360000000000  -> bit = 1, new fraction = 0.360000000000
+      Step  9: 0.360000000000 × 2 = 0.720000000000  -> bit = 0, new fraction = 0.720000000000
+      Step 10: 0.720000000000 × 2 = 1.440000000000  -> bit = 1, new fraction = 0.440000000000
+      Step 11: 0.440000000000 × 2 = 0.880000000000  -> bit = 0, new fraction = 0.880000000000
+      Step 12: 0.880000000000 × 2 = 1.760000000000  -> bit = 1, new fraction = 0.760000000000
+      Step 13: 0.760000000000 × 2 = 1.520000000000  -> bit = 1, new fraction = 0.520000000000
+      Step 14: 0.520000000000 × 2 = 1.040000000000  -> bit = 1, new fraction = 0.040000000000
+      Step 15: 0.040000000000 × 2 = 0.080000000000  -> bit = 0, new fraction = 0.080000000000
+      Step 16: 0.080000000000 × 2 = 0.160000000000  -> bit = 0, new fraction = 0.160000000000
+
+So the fractional part begins as:
+      0.1000111101011100001010001111010111000010...
+
+Therefore the full binary number is:
+      1101.1000111101011100001010001111010111000010...
+
+Step 4: Normalize the binary number
+      1101.1000111101011100001010001111010111000010... = 1.1011000111101011100001010001111010111000010... × 2^3
+
+Step 5: Determine the sign bit
+      The number is positive, so sign bit = 0
+
+Step 6: Determine the exponent bits
+      Unbiased exponent = 3
+      Bias for single precision = 127
+      Stored exponent = 3 + 127 = 130
+      130 decimal = 10000010 binary
+
+Step 7: Determine the mantissa (fraction field)
+      Take the bits after the leading 1 in the normalized form.
+
+      First 23 bits before rounding:
+      10110001111010111000010
+
+      Next bit after those 23 bits:
+      1
+
+      Remaining bits after that:
+      0001111010111000010
+
+      Since the next bit is 1 and there are still non-zero bits after it, round up the 23-bit mantissa.
+
+      Stored mantissa after rounding:
+      10110001111010111000011
+
+Step 8: Put the 32 bits together
+      sign      exponent        mantissa
+      0         10000010        10110001111010111000011
+
+      Full 32-bit pattern:
+      01000001010110001111010111000011
+
+Step 9: Group into 4-bit nibbles to convert to hexadecimal
+      0100 0001 0101 1000 1111 0101 1100 0011
+
+      = 4 1 5 8 F 5 C 3
+      = 0x4158F5C3
+
+So the 32-bit IEEE 754 float value for 13.56 °C is:
+      0x4158F5C3
+
+E. Decode the IEEE 754 value back to a real number
+--------------------------------------------------
+Given hexadecimal float:
+      0x4158F5C3
+
+Convert hex to binary:
+      01000001010110001111010111000011
+
+Split fields:
+      sign bit     = 0
+      exponent     = 10000010
+      fraction     = 10110001111010111000011
+
+1. Sign
+      sign bit = 0 -> positive
+
+2. Exponent
+      exponent bits = 10000010 = 130 decimal
+      unbiased exponent = 130 - 127 = 3
+
+3. Significand
+      Because this is a normalized number, prepend an implicit leading 1:
+      1.10110001111010111000011
+
+So the value is:
+      (+1) × 1.10110001111010111000011_2 × 2^3
+
+Shift the binary point right by 3 places:
+      1101.10001111010111000011
+
+This equals approximately:
+      13.560000419617 °C
+
+Rounded to 2 decimal places:
+      13.56 °C
+
+
+====================================================================\nREADING 3\n====================================================================\n
+A. Raw ADC hexadecimal to decimal
+---------------------------------
+Raw ADC = 0x388
+
+Convert hexadecimal to decimal:
+0x388 = 904 decimal
+
+Expanded:
+      3×16^2 + 8×16^1 + 8×16^0
+      = 904
+
+B. Convert raw ADC value to voltage
+-----------------------------------
+Formula:
+      V = (raw_ADC / 4096) × 3.3
+
+Substitute raw_ADC = 904:
+      V = (904 / 4096) × 3.3
+      V = 0.220703125 × 3.3
+      V = 0.728320312 V
+
+C. Convert voltage to temperature
+---------------------------------
+Formula:
+      T = 27 - (V - 0.706) / 0.001721
+
+Substitute V = 0.728320312:
+      T = 27 - (0.728320312 - 0.706) / 0.001721
+      T = 27 - (0.022320312) / 0.001721
+      T = 27 - 12.969385532
+      T = 14.030614468 °C
+
+Rounded to 2 decimal places:
+      T ≈ 14.03 °C
+
+D. Convert the decimal temperature to IEEE 754 single precision
+---------------------------------------------------------------
+Temperature to encode:
+      14.03 decimal
+
+Step 1: Write the decimal number as integer part + fractional part
+      14.03 = 14 + 0.030000000000
+
+Step 2: Convert the integer part to binary
+      14 decimal = 1110 binary
+
+Step 3: Convert the fractional part to binary by repeated multiplication by 2
+      Step  1: 0.030000000000 × 2 = 0.060000000000  -> bit = 0, new fraction = 0.060000000000
+      Step  2: 0.060000000000 × 2 = 0.120000000000  -> bit = 0, new fraction = 0.120000000000
+      Step  3: 0.120000000000 × 2 = 0.240000000000  -> bit = 0, new fraction = 0.240000000000
+      Step  4: 0.240000000000 × 2 = 0.480000000000  -> bit = 0, new fraction = 0.480000000000
+      Step  5: 0.480000000000 × 2 = 0.960000000000  -> bit = 0, new fraction = 0.960000000000
+      Step  6: 0.960000000000 × 2 = 1.920000000000  -> bit = 1, new fraction = 0.920000000000
+      Step  7: 0.920000000000 × 2 = 1.840000000000  -> bit = 1, new fraction = 0.840000000000
+      Step  8: 0.840000000000 × 2 = 1.680000000000  -> bit = 1, new fraction = 0.680000000000
+      Step  9: 0.680000000000 × 2 = 1.360000000000  -> bit = 1, new fraction = 0.360000000000
+      Step 10: 0.360000000000 × 2 = 0.720000000000  -> bit = 0, new fraction = 0.720000000000
+      Step 11: 0.720000000000 × 2 = 1.440000000000  -> bit = 1, new fraction = 0.440000000000
+      Step 12: 0.440000000000 × 2 = 0.880000000000  -> bit = 0, new fraction = 0.880000000000
+      Step 13: 0.880000000000 × 2 = 1.760000000000  -> bit = 1, new fraction = 0.760000000000
+      Step 14: 0.760000000000 × 2 = 1.520000000000  -> bit = 1, new fraction = 0.520000000000
+      Step 15: 0.520000000000 × 2 = 1.040000000000  -> bit = 1, new fraction = 0.040000000000
+      Step 16: 0.040000000000 × 2 = 0.080000000000  -> bit = 0, new fraction = 0.080000000000
+
+So the fractional part begins as:
+      0.0000011110101110000101000111101011100001...
+
+Therefore the full binary number is:
+      1110.0000011110101110000101000111101011100001...
+
+Step 4: Normalize the binary number
+      1110.0000011110101110000101000111101011100001... = 1.1100000011110101110000101000111101011100001... × 2^3
+
+Step 5: Determine the sign bit
+      The number is positive, so sign bit = 0
+
+Step 6: Determine the exponent bits
+      Unbiased exponent = 3
+      Bias for single precision = 127
+      Stored exponent = 3 + 127 = 130
+      130 decimal = 10000010 binary
+
+Step 7: Determine the mantissa (fraction field)
+      Take the bits after the leading 1 in the normalized form.
+
+      First 23 bits before rounding:
+      11000000111101011100001
+
+      Next bit after those 23 bits:
+      0
+
+      Remaining bits after that:
+      1000111101011100001
+
+      Since the next bit is 0 so the mantissa stays the same.
+
+      Stored mantissa after rounding:
+      11000000111101011100001
+
+Step 8: Put the 32 bits together
+      sign      exponent        mantissa
+      0         10000010        11000000111101011100001
+
+      Full 32-bit pattern:
+      01000001011000000111101011100001
+
+Step 9: Group into 4-bit nibbles to convert to hexadecimal
+      0100 0001 0110 0000 0111 1010 1110 0001
+
+      = 4 1 6 0 7 A E 1
+      = 0x41607AE1
+
+So the 32-bit IEEE 754 float value for 14.03 °C is:
+      0x41607AE1
+
+E. Decode the IEEE 754 value back to a real number
+--------------------------------------------------
+Given hexadecimal float:
+      0x41607AE1
+
+Convert hex to binary:
+      01000001011000000111101011100001
+
+Split fields:
+      sign bit     = 0
+      exponent     = 10000010
+      fraction     = 11000000111101011100001
+
+1. Sign
+      sign bit = 0 -> positive
+
+2. Exponent
+      exponent bits = 10000010 = 130 decimal
+      unbiased exponent = 130 - 127 = 3
+
+3. Significand
+      Because this is a normalized number, prepend an implicit leading 1:
+      1.11000000111101011100001
+
+So the value is:
+      (+1) × 1.11000000111101011100001_2 × 2^3
+
+Shift the binary point right by 3 places:
+      1110.00000111101011100001
+
+This equals approximately:
+      14.029999732971 °C
+
+Rounded to 2 decimal places:
+      14.03 °C
+
+
+====================================================================\nREADING 4\n====================================================================\n
+A. Raw ADC hexadecimal to decimal
+---------------------------------
+Raw ADC = 0x380
+
+Convert hexadecimal to decimal:
+0x380 = 896 decimal
+
+Expanded:
+      3×16^2 + 8×16^1 + 0×16^0
+      = 896
+
+B. Convert raw ADC value to voltage
+-----------------------------------
+Formula:
+      V = (raw_ADC / 4096) × 3.3
+
+Substitute raw_ADC = 896:
+      V = (896 / 4096) × 3.3
+      V = 0.218750000 × 3.3
+      V = 0.721875000 V
+
+C. Convert voltage to temperature
+---------------------------------
+Formula:
+      T = 27 - (V - 0.706) / 0.001721
+
+Substitute V = 0.721875000:
+      T = 27 - (0.721875000 - 0.706) / 0.001721
+      T = 27 - (0.015875000) / 0.001721
+      T = 27 - 9.224288205
+      T = 17.775711795 °C
+
+Rounded to 2 decimal places:
+      T ≈ 17.77 °C
+
+D. Convert the decimal temperature to IEEE 754 single precision
+---------------------------------------------------------------
+Temperature to encode:
+      17.77 decimal
+
+Step 1: Write the decimal number as integer part + fractional part
+      17.77 = 17 + 0.770000000000
+
+Step 2: Convert the integer part to binary
+      17 decimal = 10001 binary
+
+Step 3: Convert the fractional part to binary by repeated multiplication by 2
+      Step  1: 0.770000000000 × 2 = 1.540000000000  -> bit = 1, new fraction = 0.540000000000
+      Step  2: 0.540000000000 × 2 = 1.080000000000  -> bit = 1, new fraction = 0.080000000000
+      Step  3: 0.080000000000 × 2 = 0.160000000000  -> bit = 0, new fraction = 0.160000000000
+      Step  4: 0.160000000000 × 2 = 0.320000000000  -> bit = 0, new fraction = 0.320000000000
+      Step  5: 0.320000000000 × 2 = 0.640000000000  -> bit = 0, new fraction = 0.640000000000
+      Step  6: 0.640000000000 × 2 = 1.280000000000  -> bit = 1, new fraction = 0.280000000000
+      Step  7: 0.280000000000 × 2 = 0.560000000000  -> bit = 0, new fraction = 0.560000000000
+      Step  8: 0.560000000000 × 2 = 1.120000000000  -> bit = 1, new fraction = 0.120000000000
+      Step  9: 0.120000000000 × 2 = 0.240000000000  -> bit = 0, new fraction = 0.240000000000
+      Step 10: 0.240000000000 × 2 = 0.480000000000  -> bit = 0, new fraction = 0.480000000000
+      Step 11: 0.480000000000 × 2 = 0.960000000000  -> bit = 0, new fraction = 0.960000000000
+      Step 12: 0.960000000000 × 2 = 1.920000000000  -> bit = 1, new fraction = 0.920000000000
+      Step 13: 0.920000000000 × 2 = 1.840000000000  -> bit = 1, new fraction = 0.840000000000
+      Step 14: 0.840000000000 × 2 = 1.680000000000  -> bit = 1, new fraction = 0.680000000000
+      Step 15: 0.680000000000 × 2 = 1.360000000000  -> bit = 1, new fraction = 0.360000000000
+      Step 16: 0.360000000000 × 2 = 0.720000000000  -> bit = 0, new fraction = 0.720000000000
+
+So the fractional part begins as:
+      0.1100010100011110101110000101000111101011...
+
+Therefore the full binary number is:
+      10001.1100010100011110101110000101000111101011...
+
+Step 4: Normalize the binary number
+      10001.1100010100011110101110000101000111101011... = 1.00011100010100011110101110000101000111101011... × 2^4
+
+Step 5: Determine the sign bit
+      The number is positive, so sign bit = 0
+
+Step 6: Determine the exponent bits
+      Unbiased exponent = 4
+      Bias for single precision = 127
+      Stored exponent = 4 + 127 = 131
+      131 decimal = 10000011 binary
+
+Step 7: Determine the mantissa (fraction field)
+      Take the bits after the leading 1 in the normalized form.
+
+      First 23 bits before rounding:
+      00011100010100011110101
+
+      Next bit after those 23 bits:
+      1
+
+      Remaining bits after that:
+      10000101000111101011
+
+      Since the next bit is 1 and there are still non-zero bits after it, round up the 23-bit mantissa.
+
+      Stored mantissa after rounding:
+      00011100010100011110110
+
+Step 8: Put the 32 bits together
+      sign      exponent        mantissa
+      0         10000011        00011100010100011110110
+
+      Full 32-bit pattern:
+      01000001100011100010100011110110
+
+Step 9: Group into 4-bit nibbles to convert to hexadecimal
+      0100 0001 1000 1110 0010 1000 1111 0110
+
+      = 4 1 8 E 2 8 F 6
+      = 0x418E28F6
+
+So the 32-bit IEEE 754 float value for 17.77 °C is:
+      0x418E28F6
+
+E. Decode the IEEE 754 value back to a real number
+--------------------------------------------------
+Given hexadecimal float:
+      0x418E28F6
+
+Convert hex to binary:
+      01000001100011100010100011110110
+
+Split fields:
+      sign bit     = 0
+      exponent     = 10000011
+      fraction     = 00011100010100011110110
+
+1. Sign
+      sign bit = 0 -> positive
+
+2. Exponent
+      exponent bits = 10000011 = 131 decimal
+      unbiased exponent = 131 - 127 = 4
+
+3. Significand
+      Because this is a normalized number, prepend an implicit leading 1:
+      1.00011100010100011110110
+
+So the value is:
+      (+1) × 1.00011100010100011110110_2 × 2^4
+
+Shift the binary point right by 4 places:
+      10001.1100010100011110110
+
+This equals approximately:
+      17.770000457764 °C
+
+Rounded to 2 decimal places:
+      17.77 °C
+
+
+====================================================================
+SUMMARY TABLE
+====================================================================
+
+Raw ADC    Decimal ADC    Calculated Temperature (°C)    Given / Printed Temperature (°C)    IEEE 754 Float Hex
+0x386      902            14.966879247                  14.96                               0x416F5C29
+0x389      905            13.558480993                  13.56                               0x4158F5C3
+0x388      904            14.031280120                  14.03                               0x41607AE1
+0x380      896            17.775711796                  17.77                               0x418E28F6
+
+Final observation
+-----------------
+The ADC-to-temperature calculations produce values that are very close to the
+displayed temperatures, and the small differences come from rounding. The
+IEEE 754 conversions show that the decimal temperatures are not stored exactly
+in binary, so the true stored float value is usually slightly above or below
+the rounded decimal value shown on screen.

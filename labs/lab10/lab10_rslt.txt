@@ -1,0 +1,80 @@
+=============================================================
+Lab #10 – XIP Cache Impact Benchmark
+Wallis iterations per function: 100000
+=============================================================
+
+[Cache: ENABLED]  status = 1
+
+--- Cache ON  | Sequential (single core) ---
+Float  PI : 3.1413495540   | Time: 341560 us
+Double PI : 3.1415848000   | Time: 737906 us
+Total     :                1079471 us
+
+[Cache: DISABLED] status = 0
+
+--- Cache OFF | Sequential (single core) ---
+Float  PI : 3.1413495540   | Time: 2546873 us
+Double PI : 3.1415848000   | Time: 3488655 us
+Total     :                6035543 us
+
+
+=============================================================
+Cache Performance Gain
+=============================================================
+
+--- 1 Core Cache Performance Gain ---
+
+Float:
+Cache OFF time = 2546873 us
+Cache ON time  = 341560 us
+Speedup        = 7.46x
+Time saved     = 2205313 us
+Time reduction = 86.59%
+
+Double:
+Cache OFF time = 3488655 us
+Cache ON time  = 737906 us
+Speedup        = 4.73x
+Time saved     = 2750749 us
+Time reduction = 78.85%
+
+Total sequential:
+Cache OFF time = 6035543 us
+Cache ON time  = 1079471 us
+Speedup        = 5.59x
+Time saved     = 4956072 us
+Time reduction = 82.11%
+
+
+--- 2 Core Cache Performance Gain ---
+
+The 2 core cache performance gain cannot be calculated from the values shown above,
+because no dual core Cache OFF timings were provided.
+
+To calculate it, the following formula should be used once the dual core values are available:
+
+2 core cache speedup = (dual core Cache OFF time) / (dual core Cache ON time)
+2 core time reduction = ((Cache OFF - Cache ON) / Cache OFF) x 100%
+
+
+=============================================================
+Observations
+=============================================================
+
+The XIP cache has a major impact on execution speed. On 1 core, the total execution
+time decreases from 6035543 us to 1079471 us, giving an overall speedup of 5.59x.
+
+The single precision function benefits more from the cache than the double precision
+function. The float version achieves a 7.46x speedup, while the double version achieves
+a 4.73x speedup.
+
+This suggests that the float implementation is more heavily affected by memory access
+delays when the cache is disabled.
+
+Even with the cache enabled, the double precision function is still much slower than
+the single precision function. This shows that double precision arithmetic remains more
+computationally expensive on the RP2040.
+
+Overall, the results show that enabling the XIP cache greatly improves performance,
+especially for the single precision calculation, and significantly reduces the total
+runtime of the benchmark.

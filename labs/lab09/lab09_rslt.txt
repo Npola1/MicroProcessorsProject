@@ -1,0 +1,44 @@
+--- Sequential Run (single core) ---
+Float  PI: 3.1413495540  | Time: 341561 us
+Double PI: 3.1415848000 | Time: 737912 us
+Total sequential time: 1079477 us
+
+--- Parallel Run (dual core) ---
+Float  PI: 3.1413495540  | Core 1 finished at: 754351 us
+Double PI: 3.1415848000 | Core 0 time:        754344 us
+Total parallel time: 754352 us
+
+
+
+
+
+Observations
+------------
+1. The single-precision Wallis function is much faster than the double-precision version.
+   The float calculation took 341561 us, while the double calculation took 737912 us.
+   This means the double-precision version took about 2.16 times as long as the single-precision version.
+
+2. When both functions were run sequentially on one core, the total execution time was 1079477 us.
+   When they were run in parallel across both cores, the total execution time dropped to 754352 us.
+
+3. The parallel execution is faster than the sequential execution.
+   Speedup = 1079477 / 754352 ≈ 1.43
+   This means the dual-core version is about 1.43 times faster overall.
+
+4. The time saved by parallel execution is:
+   1079477 us - 754352 us = 325125 us
+   This is a reduction of about 30.12 percent in total runtime.
+
+5. An interesting result is that the reported single-precision time in parallel mode
+   is 754351 us, which is much larger than its actual single-core runtime of 341561 us.
+   This is because the timing method does not measure the real execution time of the
+   float function on Core 1 directly. Instead, it measures the time until Core 0 reads
+   the result back, which only happens after the double-precision work on Core 0 has finished.
+
+6. Because of this, the parallel float time shown is really the observed completion time,
+   not the true compute time of the float task. The true float runtime on Core 1 should still
+   be close to about 341561 us.
+
+7. The total parallel runtime is dominated by the slower task, which is the double-precision
+   calculation. This is why the total parallel time of 754352 us is very close to the
+   double-precision parallel time of 754344 us.
