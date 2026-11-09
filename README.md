@@ -1,97 +1,56 @@
-# pico-apps
+# Microprocessor Project — Raspberry Pi Pico
 
-Template code repository for the Raspberry Pi Pico used for the CSU23021 course for the Spring semester, and so on. Students should clone this repository to their own Git area and use it as the basis to complete their assignments and labs throughout the year.
+C and ARM assembly coursework for **CSU23021**, built on the Raspberry Pi Pico's RP2040 microcontroller. The objective is to develop low-level embedded programming skills through GPIO, interrupts, timers, programmable I/O and peripheral feedback.
 
-This repository is set up for use with Visual Studio Code, CMAKE and Doxygen. All build collateral output will be generated under the "build" folder and all Doxygen-generated documentation will be generated under the "docs" folder. The repository is structured as follows.
+The main applications are an interrupt-driven LED controller and a button-operated Morse-code learning game. The repository also contains supporting labs and the course's starter examples.
 
-## assignments
+## My role and contributions
 
-Top-level folder containing skeleton project templates for the three coding assignments.
+I implemented application logic in **C and ARM Cortex-M0+ assembly**, extending the supplied course templates:
 
-### assignments/assign01
+- **Assignment 1:** timer-alarm scheduling, interrupt handlers, button-controlled blinking and RGB feedback.
+- **Assignment 2:** button press/release timing and debouncing, dot/dash capture, Morse decoding, letter and sequence timing, and a four-level game with hints, lives, RGB and buzzer feedback.
+- **Labs:** C/assembly exercises covering interrupts, multicore and floating-point work, and ADC temperature-to-colour output, with associated build configuration and recorded results.
 
-Skeleton template for assignment #01.
+Examples of my implementation commits are [7f12205](https://github.com/Npola1/MicroProcessorsProject/commit/7f12205), [fa8b9a5](https://github.com/Npola1/MicroProcessorsProject/commit/fa8b9a5) and [1375384](https://github.com/Npola1/MicroProcessorsProject/commit/1375384). The original course template and example code remain credited in the history.
 
-### assignments/assign02
+## System architecture
 
-Skeleton template for assignment #02.
+```mermaid
+flowchart LR
+    A[Buttons / GPIO edges] --> B[ARM assembly input and interrupt routines]
+    B <--> C[C application state and decoding]
+    C --> D[Pico SDK / GPIO / timer / PIO]
+    D --> E[LED / RGB / buzzer / serial output]
+```
 
-## examples
+Each assignment is a separate firmware image; there is no operating system or backend service. CMake builds the C and assembly sources against the Pico SDK and generates firmware outputs.
 
-Top-level folder containing all example projects.
+| Location | Purpose |
+|---|---|
+| [assignments/assign01/](assignments/assign01/) | GPIO20/21/22 button inputs, GPIO25 LED and GPIO28 RGB output |
+| [assignments/assign02/](assignments/assign02/) | GPIO21 Morse button, GPIO20 buzzer, GPIO28 RGB and GPIO25 LED |
+| [labs/](labs/) | Lab exercises and individual lab instructions |
+| [examples/](examples/) | Supplied reference applications |
 
-### examples/blink_asm
+## How to run
 
-An assembly-based application that flashes the built-in LED of the Pi Pico board using subroutines with the delay between LED toggles set using a CPU sleep command.
+Use an **RP2040 Raspberry Pi Pico** with a MAKER-PI-PICO-style peripheral setup or equivalent wiring. Install Git, CMake, Python 3, the Arm GNU embedded toolchain (`arm-none-eabi-gcc`) and a native build tool. Install the [Pico C/C++ SDK](https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html) and initialise its submodules.
 
-### examples/blink_c
+```bash
+git clone https://github.com/Npola1/MicroProcessorsProject.git
+cd MicroProcessorsProject
+cmake -S . -B build -DPICO_BOARD=pico -DPICO_SDK_PATH=/absolute/path/to/pico-sdk
+cmake --build build --target assign01 assign02 --parallel
+```
 
-A C-based application that flashes the built-in LED of the Pi Pico board with the delay between LED toggles set using a CPU sleep command.
+Replace the SDK path with your local installation. To use Ninja, add `-G Ninja` when configuring. Build a particular lab with, for example, `cmake --build build --target lab11`.
 
-### examples/blink_svc
+1. Wire the peripherals for the chosen assignment; the two assignments use different button/buzzer pin assignments.
+2. Hold **BOOTSEL** while connecting the Pico over USB.
+3. Copy `build/assignments/assign01/assign01.uf2` or `build/assignments/assign02/assign02.uf2` onto the `RPI-RP2` drive. Run one image at a time.
+4. For the Morse game, a short press on GPIO21 enters a dot and a press of at least **250 ms** enters a dash. A one-second gap completes a letter; a two-second gap completes the sequence. The game starts automatically.
 
-An assembly-based application that flashes the built-in LED of the Pi Pico board using SVC exception handlers with the delay between LED toggles set using a CPU sleep command.
+Assignment 1 enables USB serial output. Assignment 2 currently uses the SDK's default UART serial configuration; use a suitable UART monitor for its text prompts, or enable USB stdio for that target and rebuild. The root `wokwi.toml` points to **lab05**, so it is not a ready-made simulation of either assignment. Update the diagram and firmware paths for any simulation you create.
 
-### examples/hello_c
-
-A C-based application that uses UART0 to print a "Hello World!" message to the console.
-
-### examples/multi_c
-
-A C-based application that uses both CPU cores to calculate factorial and Fibonacci sequences and display the results to the console.
-
-### examples/ws2812_rgb
-
-A C-based application that uses PIO to alternately flash the NeoPixel on the MAKER-PI-PICO board red, green then blue in a continuous loop.
-
-## labs
-
-Top-level folder containing skeleton project templates for the ten lab exercises.
-
-### labs/lab01
-
-Skeleton template for lab exercise #01.
-
-### labs/lab02
-
-Skeleton template for lab exercise #02.
-
-### labs/lab03
-
-Skeleton template for lab exercise #03.
-
-### labs/lab04
-
-Skeleton template for lab exercise #04.
-
-### labs/lab05
-
-Skeleton template for lab exercise #05.
-
-### labs/lab06
-
-Skeleton template for lab exercise #06.
-
-### labs/lab07
-
-Skeleton template for lab exercise #07.
-
-### labs/lab08
-
-Skeleton template for lab exercise #08.
-
-### labs/lab09
-
-Skeleton template for lab exercise #09.
-
-### labs/lab10
-
-Skeleton template for lab exercise #10.
-
-### labs/lab11
-
-Skeleton template for lab exercise #11.
-
-### labs/lab12
-
-Skeleton template for lab exercise #12.
+The checked-in VS Code configuration contains machine-specific tool paths; update those for your installation or use the CLI above. Build targets, pins and timing constants were checked against the source. Firmware execution on physical hardware was not verified during this documentation update.
